@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mirror Maze: Eternal Bond</title>
+    <style>
+        :root {
+            --bg-color: #09090b;
+            --card-bg: #18181b;
+            --emerald: #10b981;
+            --cyan: #06b6d4;
+            --zinc-400: #a1a1aa;
+            --zinc-500: #71717a;
+            --zinc-800: #27272a;
+            --zinc-900: #18181b;
+            --tile-size: 40px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #f4f4f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, var(--emerald), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .header p {
+            color: var(--zinc-500);
+            font-family: monospace;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        /* Game Container */
+        .game-container {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0 0.5rem;
+        }
+
+        .stat-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            color: var(--zinc-500);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-family: monospace;
+            font-weight: 700;
+            color: var(--emerald);
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: none;
+            color: var(--zinc-400);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 9999px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reset-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Grid */
+        .grid-wrapper {
+            position: relative;
+            border: 4px solid var(--zinc-800);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background-color: var(--zinc-900);
+        }
+
+        .grid {
+            display: grid;
+            position: relative;
+        }
+
+        .tile {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            border: 0.5px solid rgba(39, 39, 42, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .tile.wall {
+            background-color: var(--zinc-800);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        .tile.floor {
+            background-color: var(--zinc-900);
+        }
+
+        /* New Tile Types */
+        .tile.button {
+            background-color: var(--zinc-900);
+        }
+
+        .button-pad {
+            width: 20px;
+            height: 20px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid #7f1d1d;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+        }
+
+        .tile.button.pressed .button-pad {
+            transform: scale(0.85);
+            background-color: #f87171;
+            box-shadow: none;
+        }
+
+        .tile.door {
+            background-color: #3f3f46;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .door-gate {
+            position: absolute;
+            inset: 4px;
+            background: repeating-linear-gradient(
+                45deg,
+                #52525b,
+                #52525b 5px,
+                #3f3f46 5px,
+                #3f3f46 10px
+            );
+            border: 2px solid #71717a;
+            border-radius: 4px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2;
+        }
+
+        .tile.door.open .door-gate {
+            opacity: 0.1;
+            transform: scale(0.8);
+            border-color: var(--emerald);
+        }
+
+        .tile.glass-1 {
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .tile.glass-1::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 45%, rgba(16, 185, 129, 0.2) 50%, transparent 55%);
+            background-size: 200% 200%;
+            animation: shimmer 3s infinite linear;
+        }
+
+        .tile.glass-2 {
+            background-color: rgba(6, 182, 212, 0.1);
+            border: 2px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .tile.glass-2::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 45%, rgba(6, 182, 212, 0.2) 50%, transparent 55%);
+            background-size: 200% 200%;
+            animation: shimmer 3s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -100% -100%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        /* Goals */
+        .goal {
+            width: 32px;
+            height: 32px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid transparent;
+        }
+
+        .goal-1 {
+            background-color: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .goal-2 {
+            background-color: rgba(6, 182, 212, 0.15);
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        .goal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .goal-1 .goal-dot { background-color: var(--emerald); }
+        .goal-2 .goal-dot { background-color: var(--cyan); }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+
+        /* Characters */
+        .character {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: var(--tile-size);
+            height: var(--tile-size);
+            padding: 6px;
+            z-index: 10;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .char-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 0.75rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .char-1 .char-inner {
+            background-color: var(--emerald);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+
+        .char-2 .char-inner {
+            background-color: var(--cyan);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+        }
+
+        /* Character Details (Couple) */
+        .char-1 .tie {
+            width: 4px;
+            height: 10px;
+            background: #064e3b;
+            position: absolute;
+            top: 8px;
+            border-radius: 1px;
+        }
+
+        .char-2 .bow {
+            width: 12px;
+            height: 6px;
+            background: #155e75;
+            position: absolute;
+            top: 4px;
+            border-radius: 2px;
+        }
+
+        .eyes {
+            display: flex;
+            gap: 6px;
+            position: absolute;
+            top: 12px;
+        }
+
+        .eye {
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        /* Win Overlay */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(9, 9, 11, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1.5rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .overlay-content {
+            background-color: var(--zinc-900);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 2rem;
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 300px;
+        }
+
+        .overlay h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .overlay p {
+            color: var(--zinc-400);
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .overlay p b {
+            color: var(--emerald);
+        }
+
+        .btn-primary {
+            background-color: var(--emerald);
+            color: var(--bg-color);
+            font-weight: 700;
+            padding: 0.75rem 2rem;
+            border-radius: 0.75rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background-color: #34d399;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* Instructions */
+        .instructions {
+            margin-top: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            max-width: 640px;
+            width: 100%;
+        }
+
+        .info-card {
+            background-color: rgba(24, 24, 27, 0.5);
+            padding: 1rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-header.emerald { color: var(--emerald); }
+        .info-header.cyan { color: var(--cyan); }
+
+        .info-card p {
+            font-size: 0.8125rem;
+            color: var(--zinc-400);
+            line-height: 1.5;
+        }
+
+        .controls-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        kbd {
+            background-color: var(--zinc-800);
+            border: 1px solid var(--zinc-900);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--zinc-400);
+        }
+
+        /* Icons */
+        .icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            padding-top: 2rem;
+            color: var(--zinc-800);
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        @media (max-width: 640px) {
+            .instructions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Eternal Bond</h1>
+        <p>A Mirror Maze Journey</p>
+    </div>
+
+    <div class="game-container">
+        <div class="stats">
+            <div style="display: flex; gap: 1.5rem;">
+                <div class="stat-group">
+                    <span class="stat-label">Level</span>
+                    <span class="stat-value" id="level-val">1</span>
+                </div>
+                <div class="stat-group">
+                    <span class="stat-label">Moves</span>
+                    <span class="stat-value" id="moves-val">0</span>
+                </div>
+            </div>
+            <button class="reset-btn" id="reset-btn" title="Reset Level (R)">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+            </button>
+        </div>
+
+        <div class="grid-wrapper">
+            <div class="grid" id="grid"></div>
+            
+            <!-- Character 1 (Male) -->
+            <div class="character char-1" id="char-1">
+                <div class="char-inner">
+                    <div class="tie"></div>
+                    <div class="eyes">
+                        <div class="eye"></div>
+                        <div class="eye"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Character 2 (Female) -->
+            <div class="character char-2" id="char-2">
+                <div class="char-inner">
+                    <div class="bow"></div>
+                    <div class="eyes">
+                        <div class="eye"></div>
+                        <div class="eye"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Win Overlay -->
+            <div class="overlay" id="overlay">
+                <div class="overlay-content">
+                    <svg style="width: 48px; height: 48px; color: var(--emerald); margin-bottom: 1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+                    <h2 id="overlay-title">Level Cleared!</h2>
+                    <p id="overlay-desc">You synchronized the dimensions in <b id="final-moves">0</b> moves.</p>
+                    <button class="btn-primary" id="next-btn">Next Level</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <div class="info-card">
+            <div class="info-header emerald">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Objective
+            </div>
+            <p>Guide the couple to their meeting points. Movements are mirrored. Use <b>Buttons</b> to open <b>Doors</b>, and navigate <b>Glass Walls</b> that only one can pass through.</p>
+        </div>
+        <div class="info-card">
+            <div class="info-header cyan">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg>
+                Controls
+            </div>
+            <div class="controls-list">
+                <kbd>WASD</kbd>
+                <kbd>ARROWS</kbd>
+                <span style="font-size: 0.75rem; color: var(--zinc-500); align-self: center;">to move</span>
+                <kbd>Hold B</kbd>
+                <span style="font-size: 0.75rem; color: var(--zinc-500); align-self: center;">to move together</span>
+                <kbd>R</kbd>
+                <span style="font-size: 0.75rem; color: var(--zinc-500); align-self: center;">to reset</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; 2024 Eternal Bond Studios
+    </div>
+
+    <script>
+        "use strict";
+
+        // Game Constants
+        const TILE_SIZE = 40;
+        const EMPTY = 0;
+        const WALL = 1;
+        const GOAL1 = 2;
+        const GOAL2 = 3;
+        const BUTTON = 4;
+        const DOOR = 5;
+        const GLASS1 = 6;
+        const GLASS2 = 7;
+
+        const LEVELS = [
+            {
+                // Level 1: Intro to Glass Walls
+                map: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 2, 0, 6, 0, 7, 0, 3, 1],
+                    [1, 1, 1, 6, 1, 7, 1, 1, 1],
+                    [1, 0, 0, 6, 0, 7, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                p1: { x: 1, y: 3 },
+                p2: { x: 7, y: 3 }
+            },
+            {
+                // Level 2: Intro to Buttons and Doors
+                map: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 2, 0, 1, 0, 4, 0, 1, 0, 3, 1],
+                    [1, 1, 0, 5, 0, 1, 0, 5, 0, 1, 1],
+                    [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                p1: { x: 1, y: 5 },
+                p2: { x: 9, y: 5 }
+            },
+            {
+                // Level 3: Hold B + Buttons
+                map: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 1],
+                    [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 4, 1, 0, 4, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 5, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                ],
+                p1: { x: 1, y: 5 },
+                p2: { x: 11, y: 5 }
+            },
+            {
+                // Level 4: The Grand Finale
+                map: [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 2, 0, 6, 0, 1, 0, 0, 0, 1, 0, 7, 0, 3, 1],
+                    [1, 1, 1, 6, 1, 1, 0, 4, 0, 1, 1, 7, 1, 1, 1],
+                    [1, 0, 0, 6, 0, 5, 0, 1, 0, 5, 0, 7, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                p1: { x: 7, y: 5 },
+                p2: { x: 7, y: 5 }
+            }
+        ];
+
+        // Game State
+        let currentLevelIndex = 0;
+        let p1 = { x: 0, y: 0 };
+        let p2 = { x: 0, y: 0 };
+        let moves = 0;
+        let won = false;
+        let isMirrorDisabled = false;
+
+        // DOM Elements
+        const gridEl = document.getElementById('grid');
+        const char1El = document.getElementById('char-1');
+        const char2El = document.getElementById('char-2');
+        const levelValEl = document.getElementById('level-val');
+        const movesValEl = document.getElementById('moves-val');
+        const overlayEl = document.getElementById('overlay');
+        const finalMovesEl = document.getElementById('final-moves');
+        const nextBtn = document.getElementById('next-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const overlayTitle = document.getElementById('overlay-title');
+
+        function initLevel(index) {
+            const level = LEVELS[index];
+            currentLevelIndex = index;
+            p1 = { ...level.p1 };
+            p2 = { ...level.p2 };
+            moves = 0;
+            won = false;
+
+            // Update UI
+            levelValEl.textContent = index + 1;
+            movesValEl.textContent = moves;
+            overlayEl.style.display = 'none';
+
+            renderMap();
+            updateCharPositions();
+            updateDoors();
+        }
+
+        function renderMap() {
+            const level = LEVELS[currentLevelIndex];
+            const map = level.map;
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateColumns = `repeat(${map[0].length}, ${TILE_SIZE}px)`;
+            gridEl.style.gridTemplateRows = `repeat(${map.length}, ${TILE_SIZE}px)`;
+            gridEl.style.width = `${map[0].length * TILE_SIZE}px`;
+            gridEl.style.height = `${map.length * TILE_SIZE}px`;
+
+            for (let y = 0; y < map.length; y++) {
+                for (let x = 0; x < map[y].length; x++) {
+                    const tile = document.createElement('div');
+                    tile.id = `tile-${x}-${y}`;
+                    tile.className = 'tile';
+                    
+                    const type = map[y][x];
+                    if (type === WALL) tile.classList.add('wall');
+                    else if (type === BUTTON) {
+                        tile.classList.add('button');
+                        tile.innerHTML = '<div class="button-pad"></div>';
+                    }
+                    else if (type === DOOR) {
+                        tile.classList.add('door');
+                        tile.innerHTML = '<div class="door-gate"></div>';
+                    }
+                    else if (type === GLASS1) tile.classList.add('glass-1');
+                    else if (type === GLASS2) tile.classList.add('glass-2');
+                    else tile.classList.add('floor');
+                    
+                    if (type === GOAL1) {
+                        const goal = document.createElement('div');
+                        goal.className = 'goal goal-1';
+                        goal.innerHTML = '<div class="goal-dot"></div>';
+                        tile.appendChild(goal);
+                    } else if (type === GOAL2) {
+                        const goal = document.createElement('div');
+                        goal.className = 'goal goal-2';
+                        goal.innerHTML = '<div class="goal-dot"></div>';
+                        tile.appendChild(goal);
+                    }
+                    
+                    gridEl.appendChild(tile);
+                }
+            }
+        }
+
+        function updateCharPositions() {
+            char1El.style.transform = `translate(${p1.x * TILE_SIZE}px, ${p1.y * TILE_SIZE}px)`;
+            char2El.style.transform = `translate(${p2.x * TILE_SIZE}px, ${p2.y * TILE_SIZE}px)`;
+        }
+
+        function isButtonPressed() {
+            const map = LEVELS[currentLevelIndex].map;
+            return map[p1.y][p1.x] === BUTTON || map[p2.y][p2.x] === BUTTON;
+        }
+
+        function updateDoors() {
+            const map = LEVELS[currentLevelIndex].map;
+            const pressed = isButtonPressed();
+            
+            for (let y = 0; y < map.length; y++) {
+                for (let x = 0; x < map[y].length; x++) {
+                    const tile = document.getElementById(`tile-${x}-${y}`);
+                    if (map[y][x] === DOOR) {
+                        tile.classList.toggle('open', pressed);
+                    }
+                    if (map[y][x] === BUTTON) {
+                        const isCharOnButton = (p1.x === x && p1.y === y) || (p2.x === x && p2.y === y);
+                        tile.classList.toggle('pressed', isCharOnButton);
+                    }
+                }
+            }
+        }
+
+        function isValid(x, y, isChar1) {
+            const map = LEVELS[currentLevelIndex].map;
+            if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) return false;
+            
+            const tile = map[y][x];
+            if (tile === WALL) return false;
+            if (tile === DOOR) return isButtonPressed();
+            if (tile === GLASS1) return isChar1;
+            if (tile === GLASS2) return !isChar1;
+            
+            return true;
+        }
+
+        function handleMove(dx, dy) {
+            if (won) return;
+
+            moves++;
+            movesValEl.textContent = moves;
+
+            const nextP1 = { x: p1.x + dx, y: p1.y + dy };
+            const nextP2 = isMirrorDisabled 
+                ? { x: p2.x + dx, y: p2.y + dy }
+                : { x: p2.x - dx, y: p2.y - dy };
+
+            if (isValid(nextP1.x, nextP1.y, true)) {
+                p1 = nextP1;
+            }
+
+            if (isValid(nextP2.x, nextP2.y, false)) {
+                p2 = nextP2;
+            }
+
+            updateCharPositions();
+            updateDoors();
+
+            // Check Win
+            const map = LEVELS[currentLevelIndex].map;
+            if (map[p1.y][p1.x] === GOAL1 && map[p2.y][p2.x] === GOAL2) {
+                triggerWin();
+            }
+        }
+
+        function triggerWin() {
+            won = true;
+            finalMovesEl.textContent = moves;
+            overlayEl.style.display = 'flex';
+
+            if (currentLevelIndex < LEVELS.length - 1) {
+                overlayTitle.textContent = "Level Cleared!";
+                nextBtn.textContent = "Next Level";
+            } else {
+                overlayTitle.textContent = "Journey Complete!";
+                nextBtn.textContent = "Play Again";
+            }
+        }
+
+        // Event Listeners
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+
+            if (e.key.toLowerCase() === 'b') {
+                isMirrorDisabled = true;
+                return;
+            }
+
+            if (won) return;
+
+            switch (e.key.toLowerCase()) {
+                case 'arrowup':
+                case 'w':
+                    handleMove(0, -1);
+                    break;
+                case 'arrowdown':
+                case 's':
+                    handleMove(0, 1);
+                    break;
+                case 'arrowleft':
+                case 'a':
+                    handleMove(-1, 0);
+                    break;
+                case 'arrowright':
+                case 'd':
+                    handleMove(1, 0);
+                    break;
+                case 'r':
+                    initLevel(currentLevelIndex);
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key.toLowerCase() === 'b') {
+                isMirrorDisabled = false;
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentLevelIndex < LEVELS.length - 1) {
+                initLevel(currentLevelIndex + 1);
+            } else {
+                initLevel(0);
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            initLevel(currentLevelIndex);
+        });
+
+        // Start Game
+        initLevel(0);
+    </script>
+</body>
+</html>
